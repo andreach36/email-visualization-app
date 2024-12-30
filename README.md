@@ -35,5 +35,15 @@ Haz clic en cualquier fila de la tabla para ver más detalles sobre el asunto y 
 Ingresa una palabra clave en la barra de búsqueda para filtrar los correos electrónicos relacionados.
 
 ## **Capturas de pantalla**
+![email data1](https://github.com/user-attachments/assets/870b3133-27de-413d-af48-af1e6ff48f3a)
+
+![email data2](https://github.com/user-attachments/assets/6f1b45c2-0000-4771-8515-0e45eace4374)
+
+![email data3](https://github.com/user-attachments/assets/5dc846f0-3456-4452-9b1d-0cfb58934e68)
+
+![email data4](https://github.com/user-attachments/assets/304701be-7c0f-4fe4-843f-15b9f2b01eaa)
+
+
+
 
 
