@@ -1,0 +1,3 @@
+.env
+*.prof
+jsonData.json
