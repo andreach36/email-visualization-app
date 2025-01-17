@@ -3,7 +3,7 @@ import { useEmailStore } from '@/stores/data';
 import { ref } from 'vue';
 
 const emailStore = useEmailStore()
-const searchInput = ref('');
+const searchInput = ref<string>('');
 
 function handleSearch(){
   emailStore.searchQuery = searchInput.value;

@@ -2,6 +2,7 @@ export interface Email {
     Id: number
     From: string
     To: string
+    Date: string
     Subject: string
     Body: string
 }
@@ -14,6 +15,7 @@ export interface DataPagination {
 }
 
 export interface EmailVisualization {
+    Date: string
     Subject: string
     Body: string
 }

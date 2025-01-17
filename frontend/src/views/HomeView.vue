@@ -46,6 +46,7 @@ onMounted(async () => {
               <th class="border border-gray-300 px-1 md:px-4 py-2 text-xs font-medium text-gray-700">Subject</th>
               <th class="border border-gray-300 px-1 md:px-4 py-2 text-xs font-medium text-gray-700">From</th>
               <th class="border border-gray-300 px-1 md:px-4 py-2 text-xs font-medium text-gray-700">To</th>
+              <th class="border border-gray-300 px-1 md:px-4 py-2 text-xs font-medium text-gray-700">Date</th>
             </tr>
           </thead>
           <tbody>
@@ -58,6 +59,9 @@ onMounted(async () => {
               </td>
               <td class="cursor-pointer border border-gray-300 px-1 md:px-4 py-2 text-center text-xs truncate text-ellipsis whitespace-nowrap" @click="showBody(datarow)">
                 {{ datarow.To }}
+              </td>
+              <td class="cursor-pointer border border-gray-300 px-1 md:px-4 py-2 text-center text-xs truncate text-ellipsis whitespace-nowrap" @click="showBody(datarow)">
+                {{ datarow.Date }}
               </td>
             </tr>
           </tbody>
@@ -75,6 +79,7 @@ onMounted(async () => {
       </div>
       <!-- Detalles del email (Desktop) -->
       <div class="hidden md:block bg-white px-6 py-4 m-4 md:m-0 md:mr-8 rounded-lg h-[70vh] overflow-auto">
+        <h2 class="font-bold text-lg">{{ emailStore.emailVisualization.Date }}</h2>
         <h2 class="font-bold text-lg">{{ emailStore.emailVisualization.Subject }}</h2>
         <p class="tracking-normal leading-relaxed text-justify text-sm py-3 overflow-hidden">{{ emailStore.emailVisualization.Body }}</p>
       </div>

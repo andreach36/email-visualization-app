@@ -18,6 +18,7 @@ export const useEmailStore = defineStore('email', () => {
   const searchQuery = ref<string>('')
 
   const emailVisualization = ref<EmailVisualization>({
+    Date: "",
     Subject: "",
     Body: "",
   })
@@ -53,12 +54,15 @@ export const useEmailStore = defineStore('email', () => {
         throw new Error(`HTTP error! Status: ${response.status}`)
       }
       const result = await response.json()
+
+      console.log(result)
       
       // Mapear los datos emails
       dataEmails.value = result.data.map((email: any) => ({
         Id: email.ID,
         From: email.from,
         To: email.to,
+        Date: email.Date,
         Subject: email.subject,
         Body: email.Body,
       }));
@@ -67,6 +71,7 @@ export const useEmailStore = defineStore('email', () => {
       dataPagination.value = (result.pagination as DataPagination)
 
       // Obtener data panel visualizador
+      emailVisualization.value.Date = dataEmails.value[0].Subject
       emailVisualization.value.Subject = dataEmails.value[0].Subject
       emailVisualization.value.Body = dataEmails.value[0].Body
       
