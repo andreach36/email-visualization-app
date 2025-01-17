@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"runtime/pprof"
+	"syscall"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -41,7 +43,7 @@ func main() {
 	// Verificar si el índice tiene datos
 	query := map[string]interface{}{
 		"from":      0,
-		"page_size": 0, // Solo interesa obtener el total, no los datos
+		"page_size": 0,
 		"query": map[string]string{
 			"search_type": "matchall",
 		},
@@ -49,12 +51,12 @@ func main() {
 
 	total, _, err := e.GetEmailsData(query)
 	if err != nil {
-		log.Fatalf("Error obteniendo los hits: %v", err)
+		log.Printf("Error obteniendo los hits: %v", err)
 	}
 
 	if total == 0 {
 		log.Println("No se encontraron datos. Iniciando subida de datos ...")
-		datasetindex.IndexAndCreateJson()
+		datasetindex.IndexEmailData()
 	} else {
 		log.Println("Los datos ya se encuentran cargados en la base de datos.")
 		log.Printf("Total datos cargados: %d", total)
@@ -74,12 +76,18 @@ func main() {
 	})
 	r.Mount("/emails", emails.EmailsRoutes())
 
-	// Configurar el puerto del servidor
-	port := os.Getenv("PORT")
-	log.Println("Starting server on :3000...")
-	if err := http.ListenAndServe(port, r); err != nil {
-		log.Fatalf("Error iniciando servidor: %v", err)
-	}
+	// Usar un canal para capturar señales y detener el servidor
+	go func() {
+		log.Println("Starting server on :3000...")
+		if err := http.ListenAndServe(os.Getenv("PORT"), r); err != nil {
+			log.Fatalf("Error iniciando servidor: %v", err)
+		}
+	}()
+
+	// Capturar señales para detener el servidor y generar perfiles
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c // Espera la señal
 
 	// Memory Profiling
 	memFile, err := os.Create("mem.prof")

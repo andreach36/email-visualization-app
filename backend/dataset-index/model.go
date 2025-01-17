@@ -1,9 +1,11 @@
 package datasetindex
 
+import "time"
+
 type Email struct {
 	ID                        int    `json:"ID"`
 	Message_ID                string `json:"Message-ID"`
-	Date                      string `json:"Date"`
+	Date                      time.Time `json:"Date"`
 	From                      string `json:"from"`
 	To                        string `json:"to"`
 	Subject                   string `json:"subject"`

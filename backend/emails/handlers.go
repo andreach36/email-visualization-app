@@ -25,6 +25,7 @@ func (e Email) GetAllEmails(w http.ResponseWriter, r *http.Request) {
 		"query": map[string]string{
 			"search_type": "matchall",
 		},
+		"sort_fields": []string{"-Date"},
 	}
 
 	//Obtener emails data
@@ -79,6 +80,7 @@ func (e Email) SearchEmails(w http.ResponseWriter, r *http.Request) {
 			"term":  keyword,
 			"field": "_all",
 		},
+		"sort_fields": []string{"-Date"},
 	}
 
 	// Obtener emails data

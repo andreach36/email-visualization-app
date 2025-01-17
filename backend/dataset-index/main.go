@@ -11,9 +11,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 )
-
-var jsonEmailData []string
 
 // Leer los directorios
 func folderList(path string) []string {
@@ -80,9 +80,6 @@ func parseData(dataLines *bufio.Scanner, id int) Email {
 		line := dataLines.Text()
 		data.ID = id
 
-		// Debug: imprimir la línea actual
-		// fmt.Println("Processing line:", line)
-
 		// Manejo de líneas continuadas (con espacios al inicio)
 		if strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
 			if lastField != "" {
@@ -118,72 +115,70 @@ func parseData(dataLines *bufio.Scanner, id int) Email {
 			data.Body += line + "\n"
 		}
 	}
-	// Debug: imprimir los datos parseados
-	// fmt.Printf("Parsed data: %+v\n", data)
+
 	return data
 }
 
-// indexa la data
-func indexData(data Email) {
+// Se configura solicitudes HTTP
+var httpClient = &http.Client{
+	Transport: &http.Transport{
+		MaxIdleConns:        10,               //máximo número de conexiones inactivas a nivel global
+		MaxIdleConnsPerHost: 5,                // máximo número de conexiones inactivas por host
+		IdleConnTimeout:     30 * time.Second, // tiempo máximo que una conexión inactiva puede estar abierta
+	},
+}
+
+// indexa data en batches
+func batchIndexData(batch []Email) {
 	user := os.Getenv("ZINC_USER")
 	password := os.Getenv("ZINC_PASSWORD")
 	auth := user + ":" + password
 	encodeCreds := base64.StdEncoding.EncodeToString([]byte(auth))
 	index := os.Getenv("ZINC_INDEX")
 	zincHost := os.Getenv("ZINC_HOST")
-	zincUrl := zincHost + "/api/" + index + "/_doc"
-	jsonData, _ := json.MarshalIndent(data, "", "   ")
-	jsonEmailData = append(jsonEmailData, string(jsonData))
-	req, err := http.NewRequest("POST", zincUrl, bytes.NewBuffer(jsonData))
+	zincUrl := zincHost + "/api/" + index + "/_bulk"
+
+	var bulkData []byte
+	for _, data := range batch {
+		// creo la metadata
+		meta := []byte(fmt.Sprintf(`{ "index" : { "_index" : "%s" } }%s`, index, "\n"))
+		// convierto los datos del email a JSON
+		jsonData, _ := json.Marshal(data)
+		// agrego la meta data y datos convertidos a bulkdata
+		bulkData = append(bulkData, meta...)
+		bulkData = append(bulkData, jsonData...)
+		bulkData = append(bulkData, []byte("\n")...)
+	}
+
+	// creo la solicitud POST con los datos en bruto
+	req, err := http.NewRequest("POST", zincUrl, bytes.NewBuffer(bulkData))
 	if err != nil {
-		log.Printf("Error reading request %v", err)
+		log.Printf("Error creando solicitud: %v", err)
+		return
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Basic "+encodeCreds)
 
-	resp, err := http.DefaultClient.Do(req)
+	// envío la solicitud http
+	resp, err := httpClient.Do(req)
 	if err != nil {
-		log.Printf("Error %v:", err)
+		log.Printf("Error enviando solicitud: %v", err)
+		return
 	}
-
 	defer resp.Body.Close()
 }
 
-func indexDataWithLimit(data Email, semaphore chan struct{}) {
-	semaphore <- struct{}{}
-	defer func() { <-semaphore }()
-	indexData(data)
-}
-
-func createJson(data []string) {
-	file, err := os.Create("jsonData.json")
-	if err != nil {
-		log.Printf("Error al crear archivo JSON: %v", err)
-	}
-
-	file.WriteString("{")
-	file.WriteString(`"Enron-email"` + ": [")
-	for index := range data {
-		file.WriteString(data[index])
-		if index == len(data)-1 {
-			file.WriteString("]")
-			file.WriteString("}")
-		} else {
-			file.WriteString(",")
-		}
-	}
-	file.Close()
-	log.Println("Archivo JSON creado correctamente!")
-}
-
-func IndexAndCreateJson() {
+func IndexEmailData() {
 	path := os.Getenv("DATA_PATH")
-	semaphore := make(chan struct{}, 8)
+	semaphore := make(chan struct{}, 6)
+	defer close(semaphore)
 
+	var wg sync.WaitGroup
 	count := 0
 
 	fmt.Println("Indexando...")
+
 	userList := folderList(path)
 
 	for _, user := range userList {
@@ -195,27 +190,34 @@ func IndexAndCreateJson() {
 			mailFiles := fileList(filepath.Join(path, user, folder))
 
 			for _, mailFile := range mailFiles {
+				wg.Add(1)
+				count++
 				filePath := filepath.Join(path, user, folder, mailFile)
 				fmt.Printf("Procesando archivo: %s, Ruta: %s \n", mailFile, filePath)
 
-				emailFile, err := os.Open(filePath)
-				if err != nil {
-					log.Printf("Error opening file %s : %v", filePath, err)
-					continue
-				}
+				go func(filePath string, id int) {
+					defer func() { <-semaphore }()
+					semaphore <- struct{}{}
 
-				lines := bufio.NewScanner(emailFile)
-				count++
+					emailFile, err := os.Open(filePath)
+					if err != nil {
+						log.Printf("Error abriendo archivo %s: %v", filePath, err)
+						return
+					}
 
-				go indexDataWithLimit((parseData(lines, count)), semaphore)
+					defer emailFile.Close()
+
+					lines := bufio.NewScanner(emailFile)
+					emailData := parseData(lines, id)
+					batchIndexData([]Email{emailData})
+				}(filePath, count)
 			}
 		}
 
 	}
 
-	log.Printf("Cantidad de datos indexados: %d", len(jsonEmailData)+1)
 	log.Println("Indexación completada. Todos los archivos han sido procesados.")
-	// createJson(jsonEmailData)
 	fmt.Println("Finished!!!!")
+	wg.Wait()
 
 }
